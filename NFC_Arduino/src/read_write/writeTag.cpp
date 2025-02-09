@@ -3,10 +3,10 @@
 #include <ArduinoJson.h>
 
 void writeToTag(Adafruit_PN532 &nfc) {
-    Serial.println("Entered Write Mode");
+    Serial.println(F("Entered Write Mode"));
 
     while (true) {  // Keep listening for JSON input
-        Serial.println("Waiting for JSON input... (Send via Serial)");
+        Serial.println(F("Waiting for JSON input... (Send via Serial)"));
 
         while (!Serial.available()) {
             delay(100);  // Keep waiting until data is received
@@ -17,7 +17,7 @@ void writeToTag(Adafruit_PN532 &nfc) {
         DeserializationError error = deserializeJson(jsonDoc, jsonInput);
 
         if (error) {
-            Serial.print("JSON Parsing Error: ");
+            Serial.print(F("JSON Parsing Error: "));
             Serial.println(error.c_str());
             displayMessage("JSON Error");
             continue;  // Don't exit, keep listening for valid JSON
@@ -32,12 +32,12 @@ void writeToTag(Adafruit_PN532 &nfc) {
             const char* tagName = kv.key().c_str();
             JsonArray tagData = kv.value().as<JsonArray>();
 
-            Serial.print("\nWriting Tag: ");
+            Serial.print(F("\nWriting Tag: "));
             Serial.println(tagName);
 
             uint8_t uid[7], uidLength;
             if (!nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength)) {
-                Serial.println("No NFC tag detected.");
+                Serial.println(F("No NFC tag detected."));
                 displayMessage("No Tag");
                 continue;
             }
@@ -45,7 +45,7 @@ void writeToTag(Adafruit_PN532 &nfc) {
             uint8_t keyA[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
             if (!nfc.mifareclassic_AuthenticateBlock(uid, uidLength, 2, 0, keyA)) {
-                Serial.println("Auth Failed for Block 2");
+                Serial.println(F("Auth Failed for Block 2"));
                 displayMessage("Auth Failed");
                 continue;
             }
@@ -54,9 +54,9 @@ void writeToTag(Adafruit_PN532 &nfc) {
             strncpy((char*)tagDataArray, tagName, min(strlen(tagName), 16));
 
             if (nfc.mifareclassic_WriteDataBlock(2, tagDataArray)) {
-                Serial.println("Tag Name Written to Block 2");
+                Serial.println(F("Tag Name Written to Block 2"));
             } else {
-                Serial.println("Write Failed for Block 2");
+                Serial.println(F("Write Failed for Block 2"));
                 displayMessage("Write Failed");
                 continue;
             }
@@ -69,11 +69,11 @@ void writeToTag(Adafruit_PN532 &nfc) {
                     int block = atoi(blockEntry.key().c_str());
                     String dataStr = blockEntry.value().as<String>();
 
-                    Serial.print("Writing T: ");
+                    Serial.print(F("Writing T: "));
                     Serial.print(tagIndex);
-                    Serial.print("/");
+                    Serial.print(F("/"));
                     Serial.print(totalTags);
-                    Serial.print(" bl:");
+                    Serial.print(F(" bl:"));
                     Serial.println(block);
 
                     displayMessage(("T: " + String(tagIndex) + "/" + String(totalTags) + " bl:" + String(block)).c_str());
@@ -90,9 +90,9 @@ void writeToTag(Adafruit_PN532 &nfc) {
                     }
 
                     if (nfc.mifareclassic_WriteDataBlock(block, data)) {
-                        Serial.println("Write OK");
+                        Serial.println(F("Write OK"));
                     } else {
-                        Serial.println("Write Failed");
+                        Serial.println(F("Write Failed"));
                     }
                 }
             }
@@ -101,6 +101,6 @@ void writeToTag(Adafruit_PN532 &nfc) {
         displayMessage("Done");
 
         // **Wait for new input, but don't exit loop**
-        Serial.println("\nWaiting for the next JSON input...");
+        Serial.println(F("\nWaiting for the next JSON input..."));
     }
 }

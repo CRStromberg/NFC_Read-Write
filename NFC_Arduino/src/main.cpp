@@ -24,21 +24,21 @@ void setup() {
     Wire.setClock(100000);
     pinMode(WRITE_TRIGGER_PIN, INPUT_PULLUP);
 
-    Serial.println("Initializing PN532...");
+    Serial.println(F("Initializing PN532..."));
     nfc.begin();
 
     uint32_t versiondata = nfc.getFirmwareVersion();
     if (!versiondata) {
-        Serial.println("PN532 not detected! Check wiring.");
+        Serial.println(F("PN532 not detected! Check wiring."));
         return;
     }
 
-    Serial.print("PN532 Firmware: 0x");
+    Serial.print(F("PN532 Firmware: 0x"));
     Serial.println(versiondata, HEX);
     nfc.SAMConfig();
 
     if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
-        Serial.println("SSD1306 allocation failed");
+        Serial.println(F("SSD1306 allocation failed"));
         return;
     }
 
@@ -50,11 +50,11 @@ void loop() {
 
     // Switch modes when button state changes
     if (buttonState && !isWritingMode) {
-        Serial.println("Switched to Write Mode");
+        Serial.println(F("Switched to Write Mode"));
         isWritingMode = true;
         delay(1000);  // Small delay to prevent rapid switching
     } else if (!buttonState && isWritingMode) {
-        Serial.println("Switched to Read Mode");
+        Serial.println(F("Switched to Read Mode"));
         isWritingMode = false;
         delay(1000);  // Small delay to prevent rapid switching
     }
