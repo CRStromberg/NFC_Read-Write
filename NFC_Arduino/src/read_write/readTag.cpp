@@ -2,98 +2,102 @@
 #include "../display/display.h"
 
 // Define amount of Blocks to read
-const int BLOCK_SIZE = 4;  // User can modify this value
+const int SECTOR = 0;
 
-void readTag(Adafruit_PN532 &nfc) {
+void readTag(Adafruit_PN532 &nfc)
+{
     uint8_t uid[7];
     uint8_t uidLength;
+    int starting_block = (SECTOR == 0) ? 1 : (SECTOR * 4);
+    int loop_count  = (SECTOR == 0) ? 2 : 3;
+    // Set loop_count To Serial Output Blocks
+
 
     Serial.println(F("Entered Read Mode."));
 
-    if (nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength)) {
+    if (nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength))
+    {
         Serial.println(F("\nNFC Tag Detected!"));
         uint8_t keyA[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-        bool isBlock1Empty = true;
-        String block1Data = "";
+        bool Empty[3] = {true, true, true};
+        String blockData[3];
 
-        // 🔍 Read Block 1 (Tag Identifier)
-        if (nfc.mifareclassic_AuthenticateBlock(uid, uidLength, 1, 0, keyA)) {
+        // Read Block 1 (Tag Identifier)
+        if (nfc.mifareclassic_AuthenticateBlock(uid, uidLength, starting_block, 0, keyA))
+        {
             uint8_t data[16];
-            if (nfc.mifareclassic_ReadDataBlock(1, data)) {
-                for (int i = 0; i < 16; i++) {
-                    if (data[i] != 0) isBlock1Empty = false;
-                    block1Data += (char)data[i];
+            if (nfc.mifareclassic_ReadDataBlock(starting_block, data))
+            {
+                for (int i = 0; i < 16; i++)
+                {
+                    if (data[i] != 0)
+                        Empty[0] = false;
+                    blockData[0] += (char)data[i];
                 }
             }
-        } else {
-            Serial.println(F("Auth Failed for Block 1"));
+
+            // Read remaining blocks
+            for (int loop = 0; loop < loop_count; loop++)
+            {
+                int block_to_read = starting_block + loop;
+                if (nfc.mifareclassic_ReadDataBlock(block_to_read, data))
+                {
+                    for (int i = 0; i < 16; i++)
+                    {
+                        if (data[i] != 0)
+                            Empty[loop+1] = false;
+                        blockData[loop+1] += (char)data[i];
+                    }
+                }
+            }
+        }
+        else
+        {
+            Serial.println(F("Auth Failed For Sector "));
+            Serial.println(SECTOR);
         }
 
-        // 🔍 Handle Block 1 Display Logic
-        if (isBlock1Empty) {
+        // Check if first writeable block is empty
+        if (Empty[0])
+        {
             displayMessage("Empty");
             delay(3000);
-        } else {
-            int loops = (block1Data.length() > 6) ? 2 : 1;
-            for (int i = 0; i < loops; i++) {
-                displayMessage(block1Data.c_str());
+        }
+        else
+        {
+            int loops = (blockData[0].length() > 6) ? 2 : 1;
+            for (int i = 0; i < loops; i++)
+            {
+                displayMessage(blockData[0].c_str());
                 delay(3000);
             }
         }
 
-        // 🔍 Read Other Blocks (Print to Serial Only)
-        int lastAuthenticatedSector = -1;  // Track last authenticated sector
-
-        for (int block = 2; block <= BLOCK_SIZE; block++) {
-            int sector = block / 4;  // Each sector has 4 blocks
-            int trailerBlock = (sector * 4) + 3;  // Calculate sector trailer block
-
-            // ❌ Skip sector trailer blocks (3, 7, 11, 15...)
-            if (block == trailerBlock) {
-                Serial.print(F("Skipping Sector Trailer Block: "));
-                Serial.println(block);
-                continue;
+        // Log data from remaining blocks
+        for (int loop = 1; loop < loop_count; loop++)
+        {
+            Serial.println(F("Block "));
+            Serial.println(starting_block+loop);
+            Serial.println(F(": "));
+            if (Empty[loop])
+            {
+                Serial.println(F("Empty"));
             }
-
-            // 🔑 Authenticate if entering a new sector
-            if (sector != lastAuthenticatedSector) {
-                Serial.print(F("Authenticating for Sector "));
-                Serial.println(sector);
-
-                if (!nfc.mifareclassic_AuthenticateBlock(uid, uidLength, block, 0, keyA)) {
-                    Serial.print(F("Auth Failed for Block "));
-                    Serial.println(block);
-                    lastAuthenticatedSector = -1;  // Reset authentication status
-                    continue;  // Skip to the next block
-                }
-                lastAuthenticatedSector = sector;  // Store last authenticated sector
+            else
+            {
+                Serial.println(blockData[loop].c_str());
             }
-
-            uint8_t data[16];
-            if (!nfc.mifareclassic_ReadDataBlock(block, data)) {
-                Serial.print(F("Failed to read Block "));
-                Serial.println(block);
-                continue;  // Skip to the next block
-            }
-
-            String readData = "";
-            bool isEmpty = true;
-
-            for (int i = 0; i < 16; i++) {
-                if (data[i] != 0) isEmpty = false;
-                readData += (char)data[i];
-            }
-
-            Serial.print(F("Block "));
-            Serial.print(block);
-            Serial.print(F(": "));
-            Serial.println(isEmpty ? F("Empty") : readData);
         }
-    } else {
+    }
+    else
+    {
         Serial.println(F("No NFC tag detected."));
     }
 
-    // 🔄 Reset the display to "Ready" AFTER reading all blocks
+    // Avoid rapid rescan
+    delay(2000);
+
+    // Reset the display to "Ready" AFTER reading all blocks
     displayMessage("Ready");
 }

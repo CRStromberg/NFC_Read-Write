@@ -37,7 +37,7 @@ void setup() {
     Serial.println(versiondata, HEX);
     nfc.SAMConfig();
 
-    if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    if (!display.begin(SSD1306_BLACK, 0x3C)) {
         Serial.println(F("SSD1306 allocation failed"));
         return;
     }
